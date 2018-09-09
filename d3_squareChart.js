@@ -1,12 +1,6 @@
 var Square_Chart = function(opt) {
   this.data = opt.data;
-  this.rows = Math.floor(Math.sqrt(opt.data))
   this.col = opt.col;
-  this.series1 = opt.series1;
-  this.series2 = opt.series2;
-  this.series3 = opt.series3;
-  this.series4 = opt.series4;
-  this.series5 = opt.series5;
   this.element = opt.element;
   this.speed = 1000;
   this.colorPalette = [{
@@ -58,9 +52,9 @@ Square_Chart.prototype.draw = function() {
     .attr('class', 'Square_Chart_holder')
     .attr('transform', "translate(" + this.padding + "," + this.padding + ")");
 
+  this.generateData();
   this.generateXScale();
   this.generateYScale();
-  this.generateData();
   this.generateColorScale();
   this.addAxis();
   this.generateButtons();
@@ -70,17 +64,17 @@ Square_Chart.prototype.draw = function() {
 
 Square_Chart.prototype.generateXScale = function() {
   this.xScale = d3.scaleLinear()
-    .domain([0, Math.max(this.rows + 1, this.data / this.rows + 1)])
+    .domain([0, this.rows])
     .range([0, this.width - 2 * this.padding]);
 
-  this.xAxis = d3.axisTop().scale(this.xScale);
+  this.xAxis = d3.axisBottom().ticks(5).scale(this.xScale);
 }
 
 Square_Chart.prototype.generateYScale = function() {
   this.yScale = d3.scaleLinear()
-    .domain([0, Math.max(this.rows + 1, this.data / this.rows + 1)])
+    .domain([0, this.rows])
     .range([0, this.height - 2 * this.padding]);
-  this.yAxis = d3.axisLeft().scale(this.yScale);
+  this.yAxis = d3.axisLeft().ticks(5).scale(this.yScale);
 }
 
 
@@ -121,43 +115,36 @@ Square_Chart.prototype.updateAxis = function() {
 }
 
 Square_Chart.prototype.generateData = function() {
-  var col = Math.ceil(this.data / this.rows);
-  this.chart_data = [];
-  for (var i = 0; i < this.data; i++) {
-    if (i < this.series1) {
-      var color = 9;
-      var series = "A1";
-      var seriesNum = i;
-    } else if (i < this.series2) {
-      var color = 8;
-      var series = "A2";
-      var seriesNum = i - this.series1;
-    } else if (i < this.series3) {
-      var color = 7;
-      var series = "A3"
-      var seriesNum = i - this.series2;
-    } else if (i < this.series4) {
-      var color = 6;
-      var series = "A4"
-      var seriesNum = i - this.series3;
-    } else if (i < this.series5) {
-      var color = 5;
-      var series = "A5"
-      var seriesNum = i - this.series4;
-    } else {
-      var color = 4;
-      var series = "A6"
-      var seriesNum = i - this.series5;
-    };
+  this.data.sort(function(a, b) {
+    return a.value - b.value;
+  });
 
-    this.chart_data.push({
-      "series": series,
-      "seriesNum": seriesNum,
-      "i": i,
-      "x": i % col,
-      "row": Math.floor(i / col),
-      "color": color
-    });
+  this.numSeries = this.data.length;
+  this.chart_data = [];
+  this.numRect = 0;
+  var rectIndex = 0;
+
+
+  //calcualte total number of rectangles to draw
+  for (var i = 0; i < this.numSeries; i++) {
+    this.numRect += this.data[i].value;
+  }
+
+  var col = Math.ceil(Math.sqrt(this.numRect));
+  this.rows = Math.ceil(Math.sqrt(this.numRect));
+  for (var i = 0; i < this.numSeries; i++) {
+    for (var j = 0; j < this.data[i].value; j++) {
+
+      this.chart_data.push({
+        "series": this.data[i].series,
+        "value": j + 1,
+        "of": this.data[i].value,
+        "x": rectIndex % col,
+        "row": Math.floor(rectIndex / col),
+        "color": i
+      });
+      rectIndex += 1;
+    };
   };
 };
 
@@ -171,7 +158,7 @@ Square_Chart.prototype.generateBars = function() {
 
   //update elements that do have Data
   rect
-    .transition().duration(1000)
+    .transition().duration(this.speed)
     .attr("x", function(d) {
       return that.xScale(d.x)
     })
@@ -219,21 +206,13 @@ Square_Chart.prototype.generateBars = function() {
 };
 
 Square_Chart.prototype.updateBars = function() {
+  this.generateData();
   this.generateXScale();
   this.generateYScale();
-  this.generateData();
   this.generateColorScale();
   this.updateAxis();
   this.generateBars();
 
-};
-
-
-Square_Chart.prototype.updateChart = function() {
-  this.data = 1 * d3.select("#dataInput").property("value");
-  this.rows = 1 * d3.select("#rowsInput").property("value");
-  this.series5 = 1 * d3.select("#series5Input").property("value");
-  this.updateBars();
 };
 
 Square_Chart.prototype.showToolTip = function(d) {
@@ -248,7 +227,7 @@ Square_Chart.prototype.showToolTip = function(d) {
 
   this.tooltipNode
     .append("rect")
-    .attr("width", String(d.series + " | " + d.seriesNum).length * 9.1) //8.2 as a proxy of char length to calculate tooltip box width
+    .attr("width", String(d.series + " | " + d.value + '/' + d.of).length * 9.1) //8.2 as a proxy of char length to calculate tooltip box width
     .attr("height", "1.6em")
     .attr("y", "-1.25em")
     .attr("fill", "lightgray")
@@ -260,7 +239,7 @@ Square_Chart.prototype.showToolTip = function(d) {
     .attr("x", "0.5em")
     .style("opacity", 0.9)
     .style("background", "lightgray")
-    .text(d.series + " | " + d.seriesNum);
+    .text(d.series + " | " + d.value + '/' + d.of);
 
   this.tooltipNode
     .transition().duration(200)
@@ -275,26 +254,19 @@ Square_Chart.prototype.hideToolTip = function() {
 
 Square_Chart.prototype.generateButtons = function() {
   var that = this;
-  d3.select(".button-container").append("div")
-    .text("Data Points")
-    .append("input")
-    .attr("id", "dataInput")
-    .attr("value", this.data)
-  d3.select(".button-container").append("div")
-    .text("Rows")
-    .append("input")
-    .attr("id", "rowsInput")
-    .attr("value", this.rows)
-  d3.select(".button-container").append("div")
-    .text("Number of last series")
-    .append("input")
-    .attr("id", "series5Input")
-    .attr("value", this.series5)
+
   d3.select(".button-container").append("button")
-    .text("Update Data")
+    .text("Add Another Series")
     .on("click", function() {
-      that.updateChart()
-    });
+      that.addData();
+      that.updateBars();
+    })
+  d3.select(".button-container").append("button")
+    .text("Remove Last Series")
+    .on("click", function() {
+      that.removeData();
+      that.updateBars();
+    })
 
 }
 
@@ -304,14 +276,21 @@ Square_Chart.prototype.removeData = function() {
 
 };
 
+Square_Chart.prototype.addData = function() {
+  this.data.push({
+    "series": "A" + this.data.length + 1,
+    "value": Math.floor(Math.random() * 100)
+  });
+  this.updateBars();
+
+};
+
 
 Square_Chart.prototype.generateColorScale = function() {
   this.colorScale = d3.scaleOrdinal()
     .domain(d3.range(10))
-    .range(this.colorPalette.map(function(d) {
+    .range(this.colorPalette.slice(0).reverse().map(function(d) {
       return d.color
     }))
-
-
 
 }
