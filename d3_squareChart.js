@@ -221,25 +221,34 @@ Square_Chart.prototype.showToolTip = function(d) {
     this.tooltipNode.remove()
   };
 
-  this.tooltipNode = this.plot.append("g")
-    .attr("transform", "translate(" + (this.xScale(d.x) * 1 + 5) + "," + (this.yScale(d.row) * 1 - 10) + ")")
-    .style("opacity", 0)
+  this.tooltipNode = this.plot.append("g");
+
+  //check length of text
+  this.tooltipNode.append("text")
+    .attr("id","tooltiptext")
+    .attr("opacity",1)
+    .text(d.series + " | "+ d.dollar +" | " + d.value );
+
+  var text_width = d3.select("#tooltiptext").node().getComputedTextLength()+15;
 
   this.tooltipNode
-    .append("rect")
-    .attr("width", String(d.series + " | " + d.value + '/' + d.of).length * 9.1) //8.2 as a proxy of char length to calculate tooltip box width
+    .attr("transform", "translate(" +Math.min(this.xScale( d.x) * 1 + 5, this.width-this.padding - text_width )   + "," + (this.yScale(d.row) * 1 - 10) + ")")
+    .style("opacity", 0);
+
+  this.tooltipNode.append("rect")
+    .attr("id","rext")
+    .attr("width",text_width)
     .attr("height", "1.6em")
     .attr("y", "-1.25em")
     .attr("fill", "lightgray")
     .attr("rx", 4)
     .style("pointer-events", "none");
 
-
   this.tooltipNode.append("text")
-    .attr("x", "0.5em")
-    .style("opacity", 0.9)
-    .style("background", "lightgray")
-    .text(d.series + " | " + d.value + '/' + d.of);
+      .attr("x", "0.5em")
+      .style("opacity",0.9)
+      .style("background", "lightgray")
+      .text(d.series + " | "+ d.dollar +" | " + d.value );
 
   this.tooltipNode
     .transition().duration(200)
